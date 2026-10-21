@@ -135,6 +135,8 @@ def policy(
 
 ROUTE_POLICIES = (
     policy("GET", r"^/operator/overview$", ActorRole.OPERATOR, ActorRole.SYSTEM),
+    policy("GET", r"^/operator/payments$", ActorRole.OPERATOR, ActorRole.SYSTEM),
+    policy("GET", r"^/operator/debts$", ActorRole.OPERATOR, ActorRole.SYSTEM),
     policy("GET", r"^/metrics$", ActorRole.SYSTEM, ActorRole.OPERATOR),
     policy("GET", r"^/operations/dead-letters$", ActorRole.SYSTEM, ActorRole.OPERATOR),
     policy(

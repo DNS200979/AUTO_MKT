@@ -72,7 +72,11 @@ from .schemas import (
     NotificationView,
     OnboardingChatRequest,
     OnboardingChatResponse,
+    OperatorDebtItem,
+    OperatorDebtsPage,
     OperatorOverview,
+    OperatorPaymentItem,
+    OperatorPaymentsPage,
     OtpRequested,
     OtpVerify,
     PaymentCreate,
@@ -275,6 +279,43 @@ def operator_overview(
     limit: int = Query(default=10, ge=1, le=50), repo: Repository = Depends(repository)
 ) -> OperatorOverview:
     return OperatorOverview.model_validate(repo.operator_overview(limit))
+
+
+@app.get("/operator/payments", response_model=OperatorPaymentsPage)
+def operator_payments(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    payment_status: PaymentStatus | None = Query(default=None, alias="status"),
+    repo: Repository = Depends(repository),
+) -> OperatorPaymentsPage:
+    items, total = repo.operator_payments(limit=limit, offset=offset, status=payment_status)
+    return OperatorPaymentsPage(
+        items=[OperatorPaymentItem.model_validate(item) for item in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+        generated_at=now_utc(),
+    )
+
+
+@app.get("/operator/debts", response_model=OperatorDebtsPage)
+def operator_debts(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    debt_status: PaymentStatus | None = Query(default=None, alias="status"),
+    repo: Repository = Depends(repository),
+) -> OperatorDebtsPage:
+    items, total, total_amount_cents = repo.operator_debts(
+        limit=limit, offset=offset, status=debt_status
+    )
+    return OperatorDebtsPage(
+        items=[OperatorDebtItem.model_validate(item) for item in items],
+        total=total,
+        total_amount_cents=total_amount_cents,
+        limit=limit,
+        offset=offset,
+        generated_at=now_utc(),
+    )
 
 
 def check_rate_limit(request: Request, key: str, limit: int) -> None:

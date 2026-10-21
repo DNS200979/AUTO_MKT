@@ -70,6 +70,32 @@ O fluxo atual de onboarding é determinístico, e o rate limiting ainda é local
 ao processo. Consulte as seções específicas abaixo para os contratos existentes
 e os requisitos de produção.
 
+## Estado atual do projeto — 21/10/2026
+
+- A console do operador consulta a API para o resumo operacional, acessos,
+  pagamentos e dívidas abertas. Os endpoints de pagamentos e dívidas aceitam
+  filtros e paginação; o endpoint de dívidas também retorna o valor agregado.
+- `ops/seed_local_demo.py` gera registros sintéticos apenas em SQLite e em
+  desenvolvimento. Ele se recusa a misturar exemplos com uma base que já tenha
+  registros. Identificadores `DEMO-*` não são transações reais.
+- Neste workspace, a API está configurada para um PostgreSQL 17 local, na base
+  `market`. O esquema está na revisão Alembic `c4f1b2a3d4e5`; `/ready` confirmou
+  banco e esquema disponíveis. O arquivo `.env` e os dados locais não são
+  versionados.
+- A base PostgreSQL local está vazia e nenhuma fonte real de POS/ERP ou gateway
+  está conectada. A console mostrará zero registros até importar dados da
+  operação ou implementar a integração correspondente. Não usar dados de demo
+  para representar atividade real.
+- Última verificação registrada: `pytest` — 60 testes passaram, com um aviso de
+  depreciação do Starlette. Ruff, build da console e a prontidão da API também
+  foram verificados. A suíte de testes foi executada antes de configurar este
+  PostgreSQL local.
+
+Próximo passo: identificar a fonte dos dados da operação (POS/ERP, gateway ou
+exportação CSV/Excel), definir o mapeamento e então validar a tela com registros
+reais em um ambiente apropriado. `docs/PRD.md` resume o escopo funcional,
+integrações pendentes e critérios de aceite do piloto.
+
 ## Executar
 
 ```bash

@@ -94,6 +94,18 @@ class Repository(Protocol):
 
     def sensitive_data_inventory(self) -> dict[str, int]: ...
     def operator_overview(self, limit: int = 10) -> dict[str, object]: ...
+    def operator_payments(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        status: PaymentStatus | None = None,
+    ) -> tuple[list[dict[str, object]], int]: ...
+    def operator_debts(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        status: PaymentStatus | None = None,
+    ) -> tuple[list[dict[str, object]], int, int]: ...
     def anonymize_customer(self, customer_id: str) -> None: ...
     def purge_operational_data(self, before: datetime) -> dict[str, int]: ...
     def audit(
@@ -922,6 +934,103 @@ class SqlRepository:
             "recent_events": [dict(row) for row in recent_rows],
             "generated_at": now_utc(),
         }
+
+    def operator_payments(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        status: PaymentStatus | None = None,
+    ) -> tuple[list[dict[str, object]], int]:
+        bounded_limit = max(1, min(limit, 100))
+        bounded_offset = max(0, offset)
+        filters = [payments_table.c.status == status.value] if status else []
+        count_statement = select(func.count()).select_from(payments_table)
+        statement = select(
+            payments_table.c.payment_id,
+            payments_table.c.purchase_id,
+            payments_table.c.amount_cents,
+            payments_table.c.status,
+            payments_table.c.attempts,
+            payments_table.c.created_at,
+            payments_table.c.updated_at,
+        ).order_by(desc(payments_table.c.created_at), desc(payments_table.c.payment_id))
+        if filters:
+            count_statement = count_statement.where(*filters)
+            statement = statement.where(*filters)
+        with self.engine.connect() as connection:
+            total = int(connection.execute(count_statement).scalar_one())
+            rows = (
+                connection.execute(statement.limit(bounded_limit).offset(bounded_offset))
+                .mappings()
+                .all()
+            )
+        items = [
+            {
+                "payment_id": row["payment_id"],
+                "purchase_id": row["purchase_id"],
+                "amount_cents": row["amount_cents"],
+                "status": row["status"],
+                "attempts": row["attempts"],
+                "created_at": _aware(row["created_at"]),
+                "updated_at": _aware(row["updated_at"]),
+            }
+            for row in rows
+        ]
+        return items, total
+
+    def operator_debts(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        status: PaymentStatus | None = None,
+    ) -> tuple[list[dict[str, object]], int, int]:
+        bounded_limit = max(1, min(limit, 100))
+        bounded_offset = max(0, offset)
+        debt_statuses = [
+            PaymentStatus.DECLINED.value,
+            PaymentStatus.PENDING.value,
+            PaymentStatus.RETRY.value,
+            PaymentStatus.UNPAID.value,
+        ]
+        filters = [payments_table.c.status.in_(debt_statuses)]
+        if status:
+            filters.append(payments_table.c.status == status.value)
+        count_statement = select(func.count()).select_from(payments_table).where(*filters)
+        amount_statement = select(
+            func.coalesce(func.sum(payments_table.c.amount_cents), 0)
+        ).where(*filters)
+        statement = select(
+            payments_table.c.payment_id,
+            payments_table.c.purchase_id,
+            payments_table.c.amount_cents,
+            payments_table.c.status,
+            payments_table.c.attempts,
+            payments_table.c.created_at,
+            payments_table.c.updated_at,
+        ).where(*filters).order_by(
+            desc(payments_table.c.updated_at), desc(payments_table.c.payment_id)
+        )
+        with self.engine.connect() as connection:
+            total = int(connection.execute(count_statement).scalar_one())
+            total_amount_cents = int(connection.execute(amount_statement).scalar_one())
+            rows = (
+                connection.execute(statement.limit(bounded_limit).offset(bounded_offset))
+                .mappings()
+                .all()
+            )
+        items = [
+            {
+                "payment_id": row["payment_id"],
+                "purchase_id": row["purchase_id"],
+                "amount_cents": row["amount_cents"],
+                "status": row["status"],
+                "attempts": row["attempts"],
+                "created_at": _aware(row["created_at"]),
+                "updated_at": _aware(row["updated_at"]),
+            }
+            for row in rows
+        ]
+        return items, total, total_amount_cents
 
     def anonymize_customer(self, customer_id: str) -> None:
         self.get_customer(customer_id)

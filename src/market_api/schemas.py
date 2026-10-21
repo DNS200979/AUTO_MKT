@@ -203,3 +203,40 @@ class OperatorOverview(BaseModel):
     failed_notifications: int
     recent_events: list[dict[str, object]]
     generated_at: datetime
+
+
+class OperatorPaymentItem(BaseModel):
+    payment_id: str
+    purchase_id: str
+    amount_cents: int
+    status: PaymentStatus
+    attempts: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class OperatorPaymentsPage(BaseModel):
+    items: list[OperatorPaymentItem]
+    total: int
+    limit: int
+    offset: int
+    generated_at: datetime
+
+
+class OperatorDebtItem(BaseModel):
+    payment_id: str
+    purchase_id: str
+    amount_cents: int
+    status: PaymentStatus
+    attempts: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class OperatorDebtsPage(BaseModel):
+    items: list[OperatorDebtItem]
+    total: int
+    total_amount_cents: int
+    limit: int
+    offset: int
+    generated_at: datetime

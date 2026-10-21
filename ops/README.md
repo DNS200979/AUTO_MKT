@@ -4,6 +4,17 @@ Os scripts deste diretório são auxiliares de operação e não fazem parte do 
 API. O backup deve ser armazenado fora do host, com criptografia, retenção imutável e
 controle de acesso separado das chaves Fernet da aplicação.
 
+## Dados sintéticos locais
+
+Para preencher a console de desenvolvimento com clientes, pagamentos, dívidas, falhas
+de notificação e eventos sintéticos, execute na raiz do repositório:
+
+`..venv\Scripts\python.exe ops/seed_local_demo.py --database-url "sqlite:///../work/market-local.sqlite3"`
+
+O script só aceita ambiente `development` e banco SQLite. Ele se recusa a misturar os
+exemplos com qualquer base que já tenha registros. Os registros usam IDs `DEMO-*` e
+credenciais fictícias sem validade.
+
 Eles exigem `pg_dump`, `pg_restore`, `psql`, `sha256sum` e Bash no host operador. Em
 ambientes containerizados, use a imagem oficial `postgres:<major>-alpine` como cliente
 descartável, mantendo a mesma versão major do servidor.
