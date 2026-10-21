@@ -1,0 +1,13 @@
+.git
+.github
+.agents
+.codex
+.env
+.venv
+__pycache__
+*.py[cod]
+*.db
+.pytest_cache
+.ruff_cache
+tests
+plano_desenvolvimento_chatbot_mercado_autonomo.docx

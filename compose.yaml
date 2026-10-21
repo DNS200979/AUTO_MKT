@@ -1,0 +1,63 @@
+x-app-environment: &app-environment
+  MARKET_DATABASE_URL: postgresql+psycopg://market:${POSTGRES_PASSWORD:-market}@postgres:5432/market
+  MARKET_AUTO_CREATE_SCHEMA: "false"
+  MARKET_ENFORCE_MIGRATION_HEAD: "true"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: market
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-market}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market -d market"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+    env_file:
+      - path: .env
+        required: false
+    environment: *app-environment
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+    command: ["python", "-m", "market_api.worker"]
+    env_file:
+      - path: .env
+        required: false
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

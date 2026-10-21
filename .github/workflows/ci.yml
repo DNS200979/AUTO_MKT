@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+      - name: Lint
+        run: ruff check src tests migrations
+      - name: Tests
+        run: pytest -q
+      - name: Compile
+        run: python -m compileall -q src tests migrations
+      - name: Migration round trip
+        env:
+          MARKET_DATABASE_URL: sqlite:////tmp/market-ci.db
+        run: alembic upgrade head && alembic check && alembic downgrade base
+      - name: Dependency audit
+        run: pip-audit --skip-editable
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quality
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build runtime image
+        run: docker build --pull --tag autonomous-market-api:${{ github.sha }} .
+      - name: Verify non-root runtime user
+        run: test "$(docker run --rm --entrypoint id autonomous-market-api:${{ github.sha }} -u)" != "0"

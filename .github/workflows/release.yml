@@ -1,0 +1,25 @@
+name: Publish image
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Define image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build tagged image
+        run: docker build --pull --tag "$IMAGE:${GITHUB_REF_NAME}" --tag "$IMAGE:${GITHUB_SHA}" .
+      - name: Publish immutable tags
+        run: docker push "$IMAGE:${GITHUB_REF_NAME}" && docker push "$IMAGE:${GITHUB_SHA}"
